@@ -29,6 +29,7 @@ class TestApp < Rails::Application
   config.hosts << 'example.org'
   secrets.secret_key_base = 'secret_key_base'
 
+  STDOUT.sync = true
   config.logger = ActiveSupport::TaggedLogging.new(Logger.new(STDOUT))
   Rails.logger = config.logger
 

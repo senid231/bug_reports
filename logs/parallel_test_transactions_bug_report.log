@@ -1,0 +1,152 @@
+activerecord-7.0.4.2
+PATCH: active_record/connection_adapters/abstract/database_statements.rb:309
+```
+def transaction(requires_new: nil, isolation: nil, joinable: true, &block)
+        Rails.logger.debug { "transaction called with (requires_new: #{requires_new.inspect}, isolation: #{isolation.inspect}, joinable: #{joinable.inspect})" }
+        Rails.logger.debug { "current transaction is #{current_transaction.class}##{current_transaction.object_id}(joinable:#{current_transaction.joinable?.inspect})" }
+        if !requires_new && current_transaction.joinable?
+          if isolation
+            raise ActiveRecord::TransactionIsolationError, "cannot set isolation when joining a transaction"
+          end
+          Rails.logger.debug { 'yield inside current transaction' }
+          yield
+          Rails.logger.debug { 'ends block inside current transaction' }
+        else
+          Rails.logger.debug { 'create nested transaction' }
+          transaction_manager.within_new_transaction(isolation: isolation, joinable: joinable, &block)
+          Rails.logger.debug { 'ends nested transaction' }
+        end
+      rescue ActiveRecord::Rollback
+        Rails.logger.debug { 'ActiveRecord::Rollback called' }
+        # rollbacks are silently swallowed
+      end
+```
+
+/bin/bash -c "/home/senid/.rvm/bin/rvm ruby-3.2.1@bug_reports do /home/senid/.rvm/rubies/ruby-3.2.1/bin/ruby /home/senid/projects/bug_reports/rails/parallel_test_transactions_bug_report.rb"
+Fetching gem metadata from https://rubygems.org/...........
+Resolving dependencies...
+Using rake 13.0.6
+Using concurrent-ruby 1.2.2
+Using rack 2.2.6.3
+Using tzinfo 2.0.6
+Using builder 3.2.4
+Using rack-test 2.0.2
+Using crass 1.0.6
+Using nio4r 2.5.8
+Using mini_mime 1.1.2
+Using date 3.3.3
+Using timeout 0.3.2
+Using bundler 2.4.7
+Using net-protocol 0.2.1
+Using thor 1.2.1
+Using zeitwerk 2.6.7
+Using net-smtp 0.3.3
+Using websocket-extensions 0.1.5
+Using marcel 1.0.2
+Using websocket-driver 0.7.5
+Using diff-lcs 1.5.0
+Using method_source 1.0.0
+Using i18n 1.12.0
+Using erubi 1.12.0
+Using racc 1.6.2
+Using pg 1.4.6
+Using nokogiri 1.14.2 (x86_64-linux)
+Using net-pop 0.1.2
+Using loofah 2.19.1
+Using minitest 5.17.0
+Using net-imap 0.3.4
+Using rails-html-sanitizer 1.5.0
+Using activesupport 7.0.4.2
+Using rspec-support 3.12.0
+Using globalid 1.1.0
+Using activemodel 7.0.4.2
+Using rails-dom-testing 2.0.3
+Using mail 2.8.1
+Using rspec-expectations 3.12.2
+Using actionview 7.0.4.2
+Using activejob 7.0.4.2
+Using actionpack 7.0.4.2
+Using rspec-core 3.12.1
+Using actioncable 7.0.4.2
+Using railties 7.0.4.2
+Using rspec-mocks 3.12.3
+Using activerecord 7.0.4.2
+Using rspec-rails 6.0.1
+Using activestorage 7.0.4.2
+Using actionmailer 7.0.4.2
+Using actionmailbox 7.0.4.2
+Using actiontext 7.0.4.2
+Using rails 7.0.4.2
+DROP DATABASE
+CREATE DATABASE
+-- create_table(:request_logs, {:force=>true})
+   (0.1ms)  DROP TABLE IF EXISTS "request_logs"
+   (2.4ms)  CREATE TABLE "request_logs" ("id" bigserial primary key, "user_id" integer NOT NULL, "requests_count" integer NOT NULL)
+   -> 0.0150s
+-- add_index(:request_logs, :user_id, {:unique=>true})
+   (0.4ms)  CREATE UNIQUE INDEX "index_request_logs_on_user_id" ON "request_logs" ("user_id")
+   -> 0.0008s
+   (1.3ms)  CREATE TABLE "ar_internal_metadata" ("key" character varying NOT NULL PRIMARY KEY, "value" character varying, "created_at" timestamp(6) NOT NULL, "updated_at" timestamp(6) NOT NULL)
+  ActiveRecord::InternalMetadata Load (0.2ms)  SELECT "ar_internal_metadata".* FROM "ar_internal_metadata" WHERE "ar_internal_metadata"."key" = $1 LIMIT $2  [["key", "environment"], ["LIMIT", 1]]
+transaction called with (requires_new: nil, isolation: nil, joinable: true)
+current transaction is ActiveRecord::ConnectionAdapters::NullTransaction#3340(joinable:false)
+create nested transaction
+transaction called with (requires_new: nil, isolation: nil, joinable: true)
+current transaction is ActiveRecord::ConnectionAdapters::RealTransaction#3360(joinable:true)
+yield inside current transaction
+  TRANSACTION (0.1ms)  BEGIN
+  ActiveRecord::InternalMetadata Create (0.2ms)  INSERT INTO "ar_internal_metadata" ("key", "value", "created_at", "updated_at") VALUES ($1, $2, $3, $4) RETURNING "key"  [["key", "environment"], ["value", "test"], ["created_at", "2023-03-03 12:21:02.499079"], ["updated_at", "2023-03-03 12:21:02.499079"]]
+ends block inside current transaction
+  TRANSACTION (0.1ms)  COMMIT
+ends nested transaction
+Rails version is: Rails::VERSION
+Ruby version is: 3.2.1
+
+Randomized with seed 49206
+  TRANSACTION (0.1ms)  BEGIN
+transaction called with (requires_new: nil, isolation: nil, joinable: true)
+current transaction is ActiveRecord::ConnectionAdapters::RealTransaction#3740(joinable:false)
+create nested transaction
+  TRANSACTION (0.1ms)  SAVEPOINT active_record_1
+  RequestLog Create (0.4ms)  INSERT INTO "request_logs" ("user_id", "requests_count") VALUES ($1, $2) RETURNING "id"  [["user_id", 111], ["requests_count", 25]]
+  TRANSACTION (0.1ms)  RELEASE SAVEPOINT active_record_1
+ends nested transaction
+  RequestLog Count (0.2ms)  SELECT COUNT(*) FROM "request_logs"
+[thread:2] transaction called with (requires_new: nil, isolation: nil, joinable: true)
+[thread:2] current transaction is ActiveRecord::ConnectionAdapters::RealTransaction#3740(joinable:false)
+[thread:2] create nested transaction
+[thread:1] transaction called with (requires_new: nil, isolation: nil, joinable: true)
+[thread:1] current transaction is ActiveRecord::ConnectionAdapters::SavepointTransaction#3840(joinable:true)
+[thread:1] yield inside current transaction
+[thread:2]   TRANSACTION (0.1ms)  SAVEPOINT active_record_1
+[thread:2]    (0.2ms)  SELECT pg_advisory_xact_lock(1, 123)
+[thread:2]   RequestLog Load (0.1ms)  SELECT "request_logs".* FROM "request_logs" WHERE "request_logs"."user_id" = $1 LIMIT $2  [["user_id", 123], ["LIMIT", 1]]
+[thread:2] transaction called with (requires_new: nil, isolation: nil, joinable: true)
+[thread:2] current transaction is ActiveRecord::ConnectionAdapters::SavepointTransaction#3840(joinable:true)
+[thread:2] yield inside current transaction
+[thread:2]   RequestLog Create (0.2ms)  INSERT INTO "request_logs" ("user_id", "requests_count") VALUES ($1, $2) RETURNING "id"  [["user_id", 123], ["requests_count", 1]]
+[thread:2] ends block inside current transaction
+[thread:2]   TRANSACTION (0.1ms)  RELEASE SAVEPOINT active_record_1
+[thread:2] ends nested transaction
+[thread:1]    (2.0ms)  SELECT pg_advisory_xact_lock(1, 123)
+[thread:1]   RequestLog Load (0.1ms)  SELECT "request_logs".* FROM "request_logs" WHERE "request_logs"."user_id" = $1 LIMIT $2  [["user_id", 123], ["LIMIT", 1]]
+[thread:1] transaction called with (requires_new: nil, isolation: nil, joinable: true)
+[thread:1] current transaction is ActiveRecord::ConnectionAdapters::RealTransaction#3740(joinable:false)
+[thread:1] create nested transaction
+[thread:1]   TRANSACTION (0.0ms)  SAVEPOINT active_record_1
+[thread:1]   RequestLog Update (0.2ms)  UPDATE "request_logs" SET "requests_count" = $1 WHERE "request_logs"."id" = $2  [["requests_count", 2], ["id", 2]]
+[thread:1]   TRANSACTION (0.0ms)  RELEASE SAVEPOINT active_record_1
+[thread:1] ends nested transaction
+[thread:1] ends block inside current transaction
+  RequestLog Count (0.1ms)  SELECT COUNT(*) FROM "request_logs"
+  RequestLog Load (0.1ms)  SELECT "request_logs".* FROM "request_logs" WHERE "request_logs"."user_id" = $1 LIMIT $2  [["user_id", 123], ["LIMIT", 1]]
+  TRANSACTION (0.1ms)  ROLLBACK
+.
+
+Finished in 0.01294 seconds (files took 0.18963 seconds to load)
+1 example, 0 failures
+
+Randomized with seed 49206
+
+
+Process finished with exit code 0
